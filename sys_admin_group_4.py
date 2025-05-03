@@ -44,10 +44,12 @@ def create_user(username, role):
     try:
         if ' ' in username:
             raise ValueError("Invalid username format. No spaces allowed.")
+        print(f"[INFO] Creating user '{username}' with role '{role}'.")
         subprocess.run(['sudo', 'useradd', '-m', username], check=True)
+        print(f"[INFO] User '{username}' created successfully with home directory /home/{username}")
         if role == 'admin':
             subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
-        print(f"[INFO] Created user '{username}' with role '{role}'.")
+            print(f"[INFO] Role 'admin' assigned with full access permissions.")
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
@@ -57,6 +59,7 @@ def create_users_from_csv(csv_path):
     try:
         with open(csv_path, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
+            print(f"[INFO] Creating users from CSV file: {csv_path}")
             for row in reader:
                 username = row['username']
                 role = row['role']
@@ -66,10 +69,11 @@ def create_users_from_csv(csv_path):
                     subprocess.run(['bash', '-c', f"echo '{username}:{password}' | sudo chpasswd"], check=True)
                     if role == 'admin':
                         subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
-                    print(f"[INFO] Created user '{username}' with role '{role}'.")
+                    print(f"[INFO] Creating user '{username}' with role '{role}'.")
                 except Exception as e:
                     logging.error(str(e))
                     print(f"[ERROR] Skipping {username}: {e}")
+        print("[INFO] Batch user creation completed successfully.")
     except FileNotFoundError:
         logging.error("CSV file not found.")
         print("[ERROR] CSV file not found.")
@@ -77,8 +81,9 @@ def create_users_from_csv(csv_path):
 # Delete a user
 def delete_user(username):
     try:
+        print(f"[INFO] Deletng user '{username}'.")
         subprocess.run(['sudo', 'userdel', '-r', username], check=True)
-        print(f"[INFO] Deleted user '{username}'.")
+        print(f"[INFO] User '{username}' deleted successfully.")
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
@@ -86,9 +91,10 @@ def delete_user(username):
 # Update user password
 def update_user(username, password=None):
     try:
+        print(f"[INFO] Updating information for user '{username}'")
         if password:
             subprocess.run(['bash', '-c', f"echo '{username}:{password}' | sudo chpasswd"], check=True)
-            print(f"[INFO] Updated password for '{username}'.")
+            print(f"[INFO] Password updated successfully for '{username}'.")
         else:
             print("[INFO] No password provided. Nothing updated.")
     except Exception as e:
@@ -100,6 +106,8 @@ def organize_directory(directory):
     try:
         if not os.path.isdir(directory):
             raise ValueError("Invalid directory.")
+        print(f"[INFO] Organizing files in {directory} by type")
+        seenExtentions = []
         for filename in os.listdir(directory):
             path = os.path.join(directory, filename)
             if os.path.isfile(path):
@@ -108,7 +116,10 @@ def organize_directory(directory):
                 if not os.path.exists(folder):
                     os.makedirs(folder)
                 shutil.move(path, os.path.join(folder, filename))
-        print(f"[INFO] Organized files in '{directory}'.")
+                if ext not in seenExtentions:
+                    print(f"[INFO] Moved .{ext} files to {folder}")
+                    seenExtentions.append(ext)
+        print(f"[INFO] Directory organization complete.")
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
