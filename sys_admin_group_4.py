@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+
+# Import needed modules
+import argparse
+import os
+import shutil
+import csv
+import subprocess
+import time
+import psutil
+import logging
+
+# Setup logging for errors
+logging.basicConfig(filename='error_log_group_4.log', level=logging.ERROR,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
+# Function to handle user subcommands
+def handle_user(args):
+    if args.create:
+        create_user(args.username, args.role)
+    elif args.create_batch:
+        create_users_from_csv(args.csv)
+    elif args.delete:
+        delete_user(args.username)
+    elif args.update:
+        update_user(args.username, args.password)
+
+# Function to handle organize subcommands
+def handle_organize(args):
+    if args.dir:
+        organize_directory(args.dir)
+    elif args.log_monitor:
+        monitor_log(args.log_monitor)
+
+# Function to handle monitor subcommands
+def handle_monitor(args):
+    if args.system:
+        monitor_system()
+    elif args.disk:
+        check_disk_space(args.dir, args.threshold)
+
+# Create a single user
+def create_user(username, role):
+    try:
+        if ' ' in username:
+            raise ValueError("Invalid username format. No spaces allowed.")
+        subprocess.run(['sudo', 'useradd', '-m', username], check=True)
+        if role == 'admin':
+            subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
+        print(f"[INFO] Created user '{username}' with role '{role}'.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Create multiple users from CSV
+def create_users_from_csv(csv_path):
+    try:
+        with open(csv_path, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                username = row['username']
+                role = row['role']
+                password = row['password']
+                try:
+                    subprocess.run(['sudo', 'useradd', '-m', username], check=True)
+                    subprocess.run(['bash', '-c', f"echo '{username}:{password}' | sudo chpasswd"], check=True)
+                    if role == 'admin':
+                        subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
+                    print(f"[INFO] Created user '{username}' with role '{role}'.")
+                except Exception as e:
+                    logging.error(str(e))
+                    print(f"[ERROR] Skipping {username}: {e}")
+    except FileNotFoundError:
+        logging.error("CSV file not found.")
+        print("[ERROR] CSV file not found.")
+
+# Delete a user
+def delete_user(username):
+    try:
+        subprocess.run(['sudo', 'userdel', '-r', username], check=True)
+        print(f"[INFO] Deleted user '{username}'.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Update user password
+def update_user(username, password=None):
+    try:
+        if password:
+            subprocess.run(['bash', '-c', f"echo '{username}:{password}' | sudo chpasswd"], check=True)
+            print(f"[INFO] Updated password for '{username}'.")
+        else:
+            print("[INFO] No password provided. Nothing updated.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Organize files in directory
+def organize_directory(directory):
+    try:
+        if not os.path.isdir(directory):
+            raise ValueError("Invalid directory.")
+        for filename in os.listdir(directory):
+            path = os.path.join(directory, filename)
+            if os.path.isfile(path):
+                ext = filename.split('.')[-1]
+                folder = os.path.join(directory, f"{ext}_files")
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+                shutil.move(path, os.path.join(folder, filename))
+        print(f"[INFO] Organized files in '{directory}'.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Monitor a log file
+def monitor_log(log_path):
+    try:
+        errors = 0
+        criticals = 0
+        warnings = 0
+        with open(log_path, 'r') as file:
+            for line in file:
+                if 'error' in line.lower():
+                    errors += 1
+                elif 'critical' in line.lower():
+                    criticals += 1
+                elif 'warning' in line.lower():
+                    warnings += 1
+        print(f"[INFO] Errors: {errors}; Criticals: {criticals}; Warnings: {warnings}.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Monitor CPU and memory usage
+def monitor_system():
+    try:
+        for _ in range(10):
+            cpu = psutil.cpu_percent()
+            mem = psutil.virtual_memory().percent
+            print(f"[INFO] CPU Usage: {cpu}% | Memory Usage: {mem}%")
+            if cpu > 80:
+                print(f"[ALERT] High CPU usage detected: {cpu}%")
+            time.sleep(60)
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Check disk space usage
+def check_disk_space(directory, threshold):
+    try:
+        usage = shutil.disk_usage(directory)
+        percent = (usage.used / usage.total) * 100
+        print(f"[INFO] Disk Usage: {percent:.2f}%")
+        if percent > threshold:
+            print(f"[ALERT] Disk usage at {percent:.2f}% - consider freeing space.")
+    except Exception as e:
+        logging.error(str(e))
+        print(f"[ERROR] {e}")
+
+# Setup the main argument parser
+def main():
+    parser = argparse.ArgumentParser(description='System Administration Script')
+    subparsers = parser.add_subparsers(dest='subcommand')
+
+    user_parser = subparsers.add_parser('user', help='Manage users')
+    user_parser.add_argument('--create', action='store_true')
+    user_parser.add_argument('--create-batch', action='store_true')
+    user_parser.add_argument('--delete', action='store_true')
+    user_parser.add_argument('--update', action='store_true')
+    user_parser.add_argument('--username', type=str)
+    user_parser.add_argument('--role', type=str)
+    user_parser.add_argument('--csv', type=str)
+    user_parser.add_argument('--password', type=str)
+
+    organize_parser = subparsers.add_parser('organize', help='Organize files or monitor logs')
+    organize_parser.add_argument('--dir', type=str)
+    organize_parser.add_argument('--log-monitor', type=str)
+
+    monitor_parser = subparsers.add_parser('monitor', help='Monitor system health')
+    monitor_parser.add_argument('--system', action='store_true')
+    monitor_parser.add_argument('--disk', action='store_true')
+    monitor_parser.add_argument('--dir', type=str)
+    monitor_parser.add_argument('--threshold', type=int)
+
+    args = parser.parse_args()
+
+    if args.subcommand == 'user':
+        handle_user(args)
+    elif args.subcommand == 'organize':
+        handle_organize(args)
+    elif args.subcommand == 'monitor':
+        handle_monitor(args)
+    else:
+        parser.print_help()
+
+if __name__ == '__main__':
+    main()

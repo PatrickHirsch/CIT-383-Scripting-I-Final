@@ -1,0 +1,33 @@
+# Pseudocode for Final Project
+
+Start program
+  Setup argument parser
+    Create subcommands: user, organize, monitor
+
+If user subcommand:
+  If --create is used:
+    Create one user with a role
+  Else if --create-batch is used:
+    Read CSV file
+    Create multiple users from CSV data
+  Else if --delete is used:
+    Delete a specified user
+  Else if --update is used:
+    Update user password
+
+If organize subcommand:
+  If --dir is used:
+    Organize files by file type
+  Else if --log-monitor is used:
+    Monitor a given log file and summarize errors
+
+If monitor subcommand:
+  If --system is used:
+    Record CPU and memory usage every minute for 10 minutes
+  Else if --disk is used:
+    Check disk space and alert if above threshold
+
+If error happens:
+  Log error into error_log_group_4.log
+
+End program
