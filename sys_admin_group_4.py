@@ -11,7 +11,8 @@ import psutil
 import logging
 
 # Setup logging for errors
-logging.basicConfig(filename='error_log_group_4.log', level=logging.ERROR,
+logFile='error_log_group_4.log'
+logging.basicConfig(filename=logFile, level=logging.ERROR,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
 # Function to handle user subcommands
@@ -43,7 +44,7 @@ def handle_monitor(args):
 def create_user(username, role):
     try:
         if ' ' in username:
-            raise ValueError("Invalid username format. No spaces allowed.")
+            raise ValueError("Invalid username format. Usernames should not contain spaces.")
         print(f"[INFO] Creating user '{username}' with role '{role}'.")
         subprocess.run(['sudo', 'useradd', '-m', username], check=True)
         print(f"[INFO] User '{username}' created successfully with home directory /home/{username}")
@@ -53,6 +54,7 @@ def create_user(username, role):
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
+        print(f"[INFO] Error logged to {logFile}.")
 
 # Create multiple users from CSV
 def create_users_from_csv(csv_path):
@@ -127,6 +129,7 @@ def organize_directory(directory):
 # Monitor a log file
 def monitor_log(log_path):
     try:
+        print(f"[INFO] Monitoring {log_path} for critical messages")
         errors = 0
         criticals = 0
         warnings = 0
@@ -145,14 +148,17 @@ def monitor_log(log_path):
 
 # Monitor CPU and memory usage
 def monitor_system():
+    checks=10
+    frequency=1
     try:
-        for _ in range(10):
+        print(f"[INFO] System health check every {frequency} minute for {checks} minutes")
+        for _ in range(checks):
             cpu = psutil.cpu_percent()
             mem = psutil.virtual_memory().percent
             print(f"[INFO] CPU Usage: {cpu}% | Memory Usage: {mem}%")
             if cpu > 80:
                 print(f"[ALERT] High CPU usage detected: {cpu}%")
-            time.sleep(60)
+            time.sleep(60*frequency)
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
@@ -160,11 +166,12 @@ def monitor_system():
 # Check disk space usage
 def check_disk_space(directory, threshold):
     try:
+        print(f"INFO] Checking disk space for directory {directory}")
         usage = shutil.disk_usage(directory)
         percent = (usage.used / usage.total) * 100
         print(f"[INFO] Disk Usage: {percent:.2f}%")
         if percent > threshold:
-            print(f"[ALERT] Disk usage at {percent:.2f}% - consider freeing space.")
+            print(f"[ALERT] Disk usage at {percent:.2f}% - consider freeing up space.")
     except Exception as e:
         logging.error(str(e))
         print(f"[ERROR] {e}")
@@ -175,22 +182,24 @@ def main():
     subparsers = parser.add_subparsers(dest='subcommand')
 
     user_parser = subparsers.add_parser('user', help='Manage users')
-    user_parser.add_argument('--create', action='store_true')
-    user_parser.add_argument('--create-batch', action='store_true')
-    user_parser.add_argument('--delete', action='store_true')
-    user_parser.add_argument('--update', action='store_true')
+    user_parser.add_argument('--create', action='store_true', help='Create a single user (requires --username and --role).')
+    user_parser.add_argument('--create-batch', action='store_true', help='Create multiple users from a CSV file (requires --csv).')
+    user_parser.add_argument('--delete', action='store_true', help='Delete a user (requires --username).')
+    user_parser.add_argument('--update', action='store_true', help='Update user details (requires --username, optional --password).')
+    
     user_parser.add_argument('--username', type=str)
     user_parser.add_argument('--role', type=str)
     user_parser.add_argument('--csv', type=str)
     user_parser.add_argument('--password', type=str)
 
     organize_parser = subparsers.add_parser('organize', help='Organize files or monitor logs')
-    organize_parser.add_argument('--dir', type=str)
-    organize_parser.add_argument('--log-monitor', type=str)
+    organize_parser.add_argument('--dir', type=str, help='Organize files based on file types (accepts a path to directory).')
+    organize_parser.add_argument('--log-monitor', type=str, help='Monitor specific logs for critical messages and summarize them (accepts a path to a log file).')
 
     monitor_parser = subparsers.add_parser('monitor', help='Monitor system health')
-    monitor_parser.add_argument('--system', action='store_true')
-    monitor_parser.add_argument('--disk', action='store_true')
+    monitor_parser.add_argument('--system', action='store_true', help='Log CPU and memory usage every minute for 10 minutes.')
+    monitor_parser.add_argument('--disk', action='store_true', help='Alert if disk usage exceeds a threshold (requires --dir and --threshold).')
+    
     monitor_parser.add_argument('--dir', type=str)
     monitor_parser.add_argument('--threshold', type=int)
 
