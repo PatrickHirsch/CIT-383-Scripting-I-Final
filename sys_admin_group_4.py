@@ -54,7 +54,7 @@ def create_user(username, role):
         print(f"[INFO] User '{username}' created successfully with home directory /home/{username}")
         logging.info(f"User '{username}' created successfully with home directory /home/{username}")
         if role == 'admin':
-            subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
+            subprocess.run(['sudo', 'usermod', '-aG', 'sudo', username], check=True)
             print(f"[INFO] Role 'admin' assigned with full access permissions.")
             logging.info(f"Role 'admin' assigned with full access permissions.")
     except Exception as e:
@@ -106,7 +106,7 @@ def create_users_from_csv(csv_path):
                     proc = subprocess.Popen(['sudo', 'chpasswd'], stdin=subprocess.PIPE)
                     proc.communicate(f"{username}:{password}\n".encode())
                     if role == 'admin':
-                        subprocess.run(['sudo', 'usermod', '-aG', 'wheel', username], check=True)
+                        subprocess.run(['sudo', 'usermod', '-aG', 'sudo', username], check=True)
                     print(f"[INFO] Creating user '{username}' with role '{role}'.")
                     logging.info(f"Creating user '{username}' with role '{role}'.")
                 except Exception as e:
